@@ -3,27 +3,23 @@ $db_names = ['test-rails_development','test-rails_test']
 
 Exec { path => [ "/bin/", "/sbin/" , "/usr/bin/", "/usr/sbin/" ] }
 
-class { 'puppi': }
+include stdlib
 
 # Update the system before starting with ruby etc
-exec { 'apt-get update':
-  command => 'apt-get update',
-  timeout => 60,
-  tries   => 3
+class { 'apt':
+  always_apt_update => true,
 }
-
-
 
 package { ['python-software-properties']:
   ensure  => 'installed',
-  require => Exec['apt-get update'],
+  require => Class['apt'],
 }
 
 $sysPackages = [ 'build-essential', 'git', 'vim', 'libxml2','libxml2-dev','libxslt1-dev','nodejs']
 
 package { $sysPackages:
   ensure => "installed",
-  require => Exec['apt-get update'],
+  require => Class['apt'],
 }
 
 user { 'vagrant':
@@ -50,44 +46,46 @@ rvm_gem {
     require => Rvm_system_ruby['ruby-2.1.4'];
 }
 
+class { 'apache': }
+
 class {
   'rvm::passenger::apache':
-    version => '3.0.12',
+    version => '4.0.53',
     ruby_version => 'ruby-2.1.4';
 }
 
-# Need to add step that sets up the apache vhost for this project for passenger
+# # Need to add step that sets up the apache vhost for this project for passenger
 
-# Install Postgresql and setup databases
-class install_postgres {
+# # Install Postgresql and setup databases
+# class install_postgres {
 
-  class { 'postgresql': }
-  class { 'postgresql::server': }
+#   class { 'postgresql': }
+#   class { 'postgresql::server': }
 
-  pg_database { $db_names:
-    ensure => present,
-    encoding => 'UTF8',
-    require => Class['postgresql::server'],
-  }
+#   pg_database { $db_names:
+#     ensure => present,
+#     encoding => 'UTF8',
+#     require => Class['postgresql::server'],
+#   }
 
-  pg_user { "rails_user":
-    ensure => present,
-    require => Class['postgresql::server'],
-    superuser => true,
-  }
+#   pg_user { "rails_user":
+#     ensure => present,
+#     require => Class['postgresql::server'],
+#     superuser => true,
+#   }
 
-  package { 'libpq-dev':
-    ensure => installed
-  }
+#   package { 'libpq-dev':
+#     ensure => installed
+#   }
 
-  package { 'postgresql-contrib':
-    ensure  => installed,
-    require => Class['postgresql::server'],
-  }
-}
+#   package { 'postgresql-contrib':
+#     ensure  => installed,
+#     require => Class['postgresql::server'],
+#   }
+# }
 
-class { 'install_postgres': }
+# class { 'install_postgres': }
 
-class { 'apache_passenger_vhost':
-  require => Class['rvm::passenger::apache'],
-}
+# class { 'apache_passenger_vhost':
+#   require => Class['rvm::passenger::apache'],
+# }
