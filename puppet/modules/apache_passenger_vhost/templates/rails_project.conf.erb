@@ -1,0 +1,20 @@
+<VirtualHost *:80>
+  ServerName default
+  ServerAdmin root@localhost
+
+  ## Vhost docroot
+  DocumentRoot "/vagrant/<%= @rails_project %>/public"
+
+  ## Directories, there should at least be a declaration for /var/www
+
+  <Directory "/vagrant/<%= @rails_project %>/public">
+    Allow from all
+    Options -MultiViews
+    PassengerAppEnv development
+  </Directory>
+
+  ## Logging
+  ErrorLog "/var/log/apache2/default_error.log"
+  ServerSignature Off
+  CustomLog "/var/log/apache2/access.log" combined
+</VirtualHost>

@@ -22,13 +22,21 @@ package { $sysPackages:
   require => Class['apt'],
 }
 
+class { 'apache':
+  mpm_module => 'worker',
+  require => Class['apt'],
+}
+
 user { 'vagrant':
   ensure => present,
 }
 
-# Install RVM and some gems then passenger/apache
+# Exec { environment => ["rvmsudo_secure_path=1"] }
+
+ # Install RVM and some gems then passenger/apache
 class { 'rvm':
   version => '1.25.33',
+  require => Class['apache'],
 }
 
 rvm::system_user { vagrant: }
@@ -46,46 +54,43 @@ rvm_gem {
     require => Rvm_system_ruby['ruby-2.1.4'];
 }
 
-class { 'apache': }
-
 class {
   'rvm::passenger::apache':
     version => '4.0.53',
     ruby_version => 'ruby-2.1.4';
 }
 
-# # Need to add step that sets up the apache vhost for this project for passenger
+# class { 'apache_passenger_vhost':
+#   require => Class['install_rvm_passenger'],
+# }
 
 # # Install Postgresql and setup databases
-# class install_postgres {
+class install_postgres {
 
-#   class { 'postgresql': }
-#   class { 'postgresql::server': }
+  class { 'postgresql::server': }
 
-#   pg_database { $db_names:
-#     ensure => present,
-#     encoding => 'UTF8',
-#     require => Class['postgresql::server'],
-#   }
+  postgresql::server::db { $db_names:
+    user => 'rails',
+    password => 'tempPass4u'
+  }
 
-#   pg_user { "rails_user":
-#     ensure => present,
-#     require => Class['postgresql::server'],
-#     superuser => true,
-#   }
+  package { 'libpq-dev':
+    ensure => installed
+  }
 
-#   package { 'libpq-dev':
-#     ensure => installed
-#   }
+  package { 'postgresql-contrib':
+    ensure  => installed,
+    require => Class['postgresql::server'],
+  }
+}
 
-#   package { 'postgresql-contrib':
-#     ensure  => installed,
-#     require => Class['postgresql::server'],
-#   }
+class { 'install_postgres': }
+
+# exec {
+#   'bundle rails':
+#     command => 'bundle',
+#     cwd => "/vagrant/${rails_project}",
+#     user => 'vagrant',
+#     environment => ["HOME=/home/vagrant"],
 # }
 
-# class { 'install_postgres': }
-
-# class { 'apache_passenger_vhost':
-#   require => Class['rvm::passenger::apache'],
-# }
