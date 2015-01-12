@@ -1,5 +1,5 @@
-$rails_project = 'test-rails'
-$db_names = ['test-rails_development','test-rails_test']
+$rails_project = 'buckeye_vault'
+$db_names = ['buckeye_vault_development','buckeye_vault_test']
 
 Exec { path => [ "/bin/", "/sbin/" , "/usr/bin/", "/usr/sbin/" ] }
 
