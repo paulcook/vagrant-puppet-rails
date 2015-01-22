@@ -23,6 +23,10 @@ describe 'apache', :type => :class do
     it { is_expected.to contain_user("www-data") }
     it { is_expected.to contain_group("www-data") }
     it { is_expected.to contain_class("apache::service") }
+    it { is_expected.to contain_file("/var/www").with(
+      'ensure'  => 'directory'
+      )
+    }
     it { is_expected.to contain_file("/etc/apache2/sites-enabled").with(
       'ensure'  => 'directory',
       'recurse' => 'true',
@@ -164,7 +168,7 @@ describe 'apache', :type => :class do
         end
 
         it { is_expected.to contain_file("/etc/apache2/apache2.conf").with_content %r{^LogFormat "%v %h %l %u %t \"%r\" %>s %b" vhost_common\n} }
-        it { is_expected.to contain_file("/etc/apache2/apache2.conf").with_content %r{^LogFormat "%v %h %l %u %t \"%r\" %>s %b \"%{Referer}i\" \"%{User-agent}i\"" vhost_combined\n} }
+        it { is_expected.to contain_file("/etc/apache2/apache2.conf").with_content %r{^LogFormat "%v %h %l %u %t \"%r\" %>s %b \"%\{Referer\}i\" \"%\{User-agent\}i\"" vhost_combined\n} }
       end
     end
 
@@ -225,6 +229,10 @@ describe 'apache', :type => :class do
     it { is_expected.to contain_user("apache") }
     it { is_expected.to contain_group("apache") }
     it { is_expected.to contain_class("apache::service") }
+    it { is_expected.to contain_file("/var/www/html").with(
+      'ensure'  => 'directory'
+      )
+    }
     it { is_expected.to contain_file("/etc/httpd/conf.d").with(
       'ensure'  => 'directory',
       'recurse' => 'true',
@@ -480,6 +488,42 @@ describe 'apache', :type => :class do
         it { is_expected.to contain_file("/etc/httpd/conf/httpd.conf").with_content %r{^EnableSendfile Off\n} }
       end
     end
+    context "on Fedora" do
+      let :facts do
+        super().merge({
+          :operatingsystem => 'Fedora'
+        })
+      end
+
+      context "21" do
+        let :facts do
+          super().merge({
+            :lsbdistrelease         => '21',
+            :operatingsystemrelease => '21'
+          })
+        end
+        it { is_expected.to contain_class('apache').with_apache_version('2.4') }
+      end
+      context "Rawhide" do
+        let :facts do
+          super().merge({
+            :lsbdistrelease         => 'Rawhide',
+            :operatingsystemrelease => 'Rawhide'
+          })
+        end
+        it { is_expected.to contain_class('apache').with_apache_version('2.4') }
+      end
+      # kinda obsolete
+      context "17" do
+        let :facts do
+          super().merge({
+            :lsbdistrelease         => '17',
+            :operatingsystemrelease => '17'
+          })
+        end
+        it { is_expected.to contain_class('apache').with_apache_version('2.2') }
+      end
+    end
   end
   context "on a FreeBSD OS" do
     let :facts do
@@ -498,6 +542,10 @@ describe 'apache', :type => :class do
     it { is_expected.to contain_user("www") }
     it { is_expected.to contain_group("www") }
     it { is_expected.to contain_class("apache::service") }
+    it { is_expected.to contain_file("/usr/local/www/apache22/data").with(
+      'ensure'  => 'directory'
+      )
+    }
     it { is_expected.to contain_file("/usr/local/etc/apache22/Vhosts").with(
       'ensure'  => 'directory',
       'recurse' => 'true',

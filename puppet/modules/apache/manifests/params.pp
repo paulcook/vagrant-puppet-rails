@@ -68,7 +68,10 @@ class apache::params inherits ::apache::version {
     # NOTE: The module for Shibboleth is not available to RH/CentOS without an additional repository. http://wiki.aaf.edu.au/tech-info/sp-install-guide
     $mod_packages         = {
       'auth_kerb'   => 'mod_auth_kerb',
-      'authnz_ldap' => 'mod_authz_ldap',
+      'authnz_ldap' => $::apache::version::distrelease ? {
+        '7'     => 'mod_ldap',
+        default => 'mod_authz_ldap',
+      },
       'fastcgi'     => 'mod_fastcgi',
       'fcgid'       => 'mod_fcgid',
       'pagespeed'   => 'mod-pagespeed-stable',
@@ -80,6 +83,7 @@ class apache::params inherits ::apache::version {
       },
       'proxy_html'  => 'mod_proxy_html',
       'python'      => 'mod_python',
+      'security'    => 'mod_security',
       'shibboleth'  => 'shibboleth',
       'ssl'         => 'mod_ssl',
       'wsgi'        => 'mod_wsgi',
@@ -100,11 +104,42 @@ class apache::params inherits ::apache::version {
     $fastcgi_lib_path     = undef
     $mime_support_package = 'mailcap'
     $mime_types_config    = '/etc/mime.types'
+    $docroot              = '/var/www/html'
+    $error_documents_path = $::apache::version::distrelease ? {
+      '7'     => '/usr/share/httpd/error',
+      default => '/var/www/error'
+    }
     if $::osfamily == "RedHat" {
       $wsgi_socket_prefix = '/var/run/wsgi'
     } else {
       $wsgi_socket_prefix = undef
     }
+    $modsec_crs_package   = 'mod_security_crs'
+    $modsec_crs_path      = '/usr/lib/modsecurity.d'
+    $modsec_dir           = '/etc/httpd/modsecurity.d'
+    $modsec_default_rules = [
+      'base_rules/modsecurity_35_bad_robots.data',
+      'base_rules/modsecurity_35_scanners.data',
+      'base_rules/modsecurity_40_generic_attacks.data',
+      'base_rules/modsecurity_41_sql_injection_attacks.data',
+      'base_rules/modsecurity_50_outbound.data',
+      'base_rules/modsecurity_50_outbound_malware.data',
+      'base_rules/modsecurity_crs_20_protocol_violations.conf',
+      'base_rules/modsecurity_crs_21_protocol_anomalies.conf',
+      'base_rules/modsecurity_crs_23_request_limits.conf',
+      'base_rules/modsecurity_crs_30_http_policy.conf',
+      'base_rules/modsecurity_crs_35_bad_robots.conf',
+      'base_rules/modsecurity_crs_40_generic_attacks.conf',
+      'base_rules/modsecurity_crs_41_sql_injection_attacks.conf',
+      'base_rules/modsecurity_crs_41_xss_attacks.conf',
+      'base_rules/modsecurity_crs_42_tight_security.conf',
+      'base_rules/modsecurity_crs_45_trojans.conf',
+      'base_rules/modsecurity_crs_47_common_exceptions.conf',
+      'base_rules/modsecurity_crs_49_inbound_blocking.conf',
+      'base_rules/modsecurity_crs_50_outbound.conf',
+      'base_rules/modsecurity_crs_59_outbound_blocking.conf',
+      'base_rules/modsecurity_crs_60_correlation.conf'
+    ]
   } elsif $::osfamily == 'Debian' {
     $user                = 'www-data'
     $group               = 'www-data'
@@ -145,6 +180,7 @@ class apache::params inherits ::apache::version {
       'proxy_html'  => 'libapache2-mod-proxy-html',
       'python'      => 'libapache2-mod-python',
       'rpaf'        => 'libapache2-mod-rpaf',
+      'security'    => 'libapache2-modsecurity',
       'suphp'       => 'libapache2-mod-suphp',
       'wsgi'        => 'libapache2-mod-wsgi',
       'xsendfile'   => 'libapache2-mod-xsendfile',
@@ -160,6 +196,34 @@ class apache::params inherits ::apache::version {
     $fastcgi_lib_path       = '/var/lib/apache2/fastcgi'
     $mime_support_package = 'mime-support'
     $mime_types_config    = '/etc/mime.types'
+    $docroot              = '/var/www'
+    $modsec_crs_package   = 'modsecurity-crs'
+    $modsec_crs_path      = '/usr/share/modsecurity-crs'
+    $modsec_dir           = '/etc/modsecurity'
+    $modsec_default_rules = [
+      'base_rules/modsecurity_35_bad_robots.data',
+      'base_rules/modsecurity_35_scanners.data',
+      'base_rules/modsecurity_40_generic_attacks.data',
+      'base_rules/modsecurity_41_sql_injection_attacks.data',
+      'base_rules/modsecurity_50_outbound.data',
+      'base_rules/modsecurity_50_outbound_malware.data',
+      'base_rules/modsecurity_crs_20_protocol_violations.conf',
+      'base_rules/modsecurity_crs_21_protocol_anomalies.conf',
+      'base_rules/modsecurity_crs_23_request_limits.conf',
+      'base_rules/modsecurity_crs_30_http_policy.conf',
+      'base_rules/modsecurity_crs_35_bad_robots.conf',
+      'base_rules/modsecurity_crs_40_generic_attacks.conf',
+      'base_rules/modsecurity_crs_41_sql_injection_attacks.conf',
+      'base_rules/modsecurity_crs_41_xss_attacks.conf',
+      'base_rules/modsecurity_crs_42_tight_security.conf',
+      'base_rules/modsecurity_crs_45_trojans.conf',
+      'base_rules/modsecurity_crs_47_common_exceptions.conf',
+      'base_rules/modsecurity_crs_49_inbound_blocking.conf',
+      'base_rules/modsecurity_crs_50_outbound.conf',
+      'base_rules/modsecurity_crs_59_outbound_blocking.conf',
+      'base_rules/modsecurity_crs_60_correlation.conf'
+    ]
+    $error_documents_path = '/usr/share/apache2/error'
 
     #
     # Passenger-specific settings
@@ -196,6 +260,11 @@ class apache::params inherits ::apache::version {
             $passenger_root         = '/usr'
             $passenger_ruby         = '/usr/bin/ruby'
             $passenger_default_ruby = undef
+          }
+          'jessie': {
+            $passenger_root         = '/usr/lib/ruby/vendor_ruby/phusion_passenger/locations.ini'
+            $passenger_ruby         = undef
+            $passenger_default_ruby = '/usr/bin/ruby'
           }
           default: {
             # The following settings may or may not work on Debian releases not
@@ -270,6 +339,8 @@ class apache::params inherits ::apache::version {
     $mime_support_package = 'misc/mime-support'
     $mime_types_config    = '/usr/local/etc/mime.types'
     $wsgi_socket_prefix   = undef
+    $docroot              = '/usr/local/www/apache22/data'
+    $error_documents_path = '/usr/local/www/apache22/error'
   } else {
     fail("Class['apache::params']: Unsupported osfamily: ${::osfamily}")
   }

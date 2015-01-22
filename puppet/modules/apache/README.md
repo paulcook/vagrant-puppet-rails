@@ -16,15 +16,18 @@
         * [Class: apache::default_mods](#class-apachedefault_mods)
         * [Defined Type: apache::mod](#defined-type-apachemod)
         * [Classes: apache::mod::*](#classes-apachemodname)
+        * [Class: apache::mod::event](#class-apachemodevent)
         * [Class: apache::mod::info](#class-apachemodinfo)
         * [Class: apache::mod::pagespeed](#class-apachemodpagespeed)
         * [Class: apache::mod::php](#class-apachemodphp)
         * [Class: apache::mod::ssl](#class-apachemodssl)
+        * [Class: apache::mod::status](#class-apachemodstatus)
         * [Class: apache::mod::wsgi](#class-apachemodwsgi)
         * [Class: apache::mod::fcgid](#class-apachemodfcgid)
         * [Class: apache::mod::negotiation](#class-apachemodnegotiation)
         * [Class: apache::mod::deflate](#class-apachemoddeflate)
         * [Class: apache::mod::reqtimeout](#class-apachemodreqtimeout)
+        * [Class: apache::mod::security](#class-modsecurity)
         * [Class: apache::mod::version](#class-apachemodversion)
         * [Defined Type: apache::vhost](#defined-type-apachevhost)
         * [Parameter: `directories` for apache::vhost](#parameter-directories-for-apachevhost)
@@ -66,7 +69,7 @@ Apache is a widely-used web server, and this module provides a simplified way of
 * Apache modules
 * virtual hosts
 * listened-to ports
-* `/etc/make.conf` on FreeBSD 
+* `/etc/make.conf` on FreeBSD
 
 ###Beginning with Apache
 
@@ -182,9 +185,9 @@ To set up a virtual host with WSGI
       docroot                     => '/var/www/pythonapp',
       wsgi_application_group      => '%{GLOBAL}',
       wsgi_daemon_process         => 'wsgi',
-      wsgi_daemon_process_options => { 
-        processes    => '2', 
-        threads      => '15', 
+      wsgi_daemon_process_options => {
+        processes    => '2',
+        threads      => '15',
         display-name => '%{GROUP}',
        },
       wsgi_import_script          => '/var/www/demo.wsgi',
@@ -253,7 +256,7 @@ Generates default set of include-able Apache configuration files under  `${apach
 
 #####`default_mods`
 
-Sets up Apache with default settings based on your OS. Valid values are 'true', 'false', or an array of mod names. 
+Sets up Apache with default settings based on your OS. Valid values are 'true', 'false', or an array of mod names.
 
 Defaults to 'true', which includes the default [HTTPD mods](https://github.com/puppetlabs/puppetlabs-apache/blob/master/manifests/default_mods.pp).
 
@@ -309,6 +312,10 @@ SSL vhosts only respond to HTTPS queries.
 #####`default_vhost`
 
 Sets up a default virtual host. Defaults to 'true', set to 'false' to set up [customized virtual hosts](#configure-a-virtual-host).
+
+#####`docroot`
+
+Changes the location of the default [Documentroot](https://httpd.apache.org/docs/current/mod/core.html#documentroot). Defaults to '/var/www/html' on RedHat, '/var/www' on Debian, and '/usr/local/www/apache22/data' on FreeBSD.
 
 #####`error_documents`
 
@@ -375,9 +382,9 @@ Determines which MPM is loaded and configured for the HTTPD process. Valid value
 * `apache::mod::itk`
 * `apache::mod::peruser`
 * `apache::mod::prefork`
-* `apache::mod::worker` 
+* `apache::mod::worker`
 
-*Note:* Switching between different MPMs on FreeBSD is possible but quite difficult. Before changing `$mpm_module` you must uninstall all packages that depend on your currently-installed Apache. 
+*Note:* Switching between different MPMs on FreeBSD is possible but quite difficult. Before changing `$mpm_module` you must uninstall all packages that depend on your currently-installed Apache.
 
 #####`package_ensure`
 
@@ -520,7 +527,7 @@ There are many `apache::mod::[name]` classes within this module that can be decl
 * `dev`
 * `dir`*
 * `disk_cache`
-* `event`
+* `event`(see [`apache::mod::event`](#class-apachemodevent) below)
 * `expires`
 * `fastcgi`
 * `fcgid`
@@ -549,10 +556,11 @@ There are many `apache::mod::[name]` classes within this module that can be decl
 * `rewrite`
 * `rpaf`*
 * `setenvif`
+* `security`
 * `shib`* (see [`apache::mod::shib`](#class-apachemodshib) below)
 * `speling`
 * `ssl`* (see [`apache::mod::ssl`](#class-apachemodssl) below)
-* `status`*
+* `status`* (see [`apache::mod::status`](#class-apachemodstatus) below)
 * `suphp`
 * `userdir`*
 * `vhost_alias`
@@ -564,11 +572,26 @@ Modules noted with a * indicate that the module has settings and, thus, a templa
 
 The modules mentioned above, and other Apache modules that have templates, cause template files to be dropped along with the mod install. The module will not work without the template. Any module without a template installs the package but drops no files.
 
+####Class:  `apache::mod::event
+
+Installs and manages mpm_event module.
+
+Full Documentation for mpm_event is available from [Apache](https://httpd.apache.org/docs/current/mod/event.html).
+
+To configure the event thread limit:
+
+```puppet
+  class {'apache::mod::event':
+    $threadlimit      => '128',
+  }
+```
+
+
 ####Class: `apache::mod::info`
 
-Installs and manages mod_info which provides a comprehensive overview of the server configuration. 
+Installs and manages mod_info which provides a comprehensive overview of the server configuration.
 
-Full documentation for mod_info is available from [Apache](http://httpd.apache.org/docs/2.2/mod/mod_info.html).
+Full documentation for mod_info is available from [Apache](https://httpd.apache.org/docs/current/mod/mod_info.html).
 
 These are the default settings:
 
@@ -681,7 +704,7 @@ Overriding the default configuartion:
   }
 ```
 
-or 
+or
 ```puppet
   class {'::apache::mod::php':
     template => 'apache/php.conf.erb',
@@ -709,17 +732,33 @@ Installs Apache SSL capabilities and uses the ssl.conf.erb template. These are t
 
 ```puppet
     class { 'apache::mod::ssl':
-      ssl_compression => false,
-      ssl_options     => [ 'StdEnvVars' ],
-      ssl_protocol    => [ 'all', '-SSLv2', '-SSLv3'],
+      ssl_compression        => false,
+      ssl_options            => [ 'StdEnvVars' ],
+      ssl_pass_phrase_dialog => 'builtin',
+      ssl_protocol           => [ 'all', '-SSLv2', '-SSLv3'],
   }
 ```
 
 To *use* SSL with a virtual host, you must either set the`default_ssl_vhost` parameter in `::apache` to 'true' or set the `ssl` parameter in `apache::vhost` to 'true'.
 
+####Class: `apache::mod::status`
+
+Installs Apache mod_status and uses the status.conf.erb template. These are the defaults:
+
+```puppet
+    class { 'apache::mod::status':
+      allow_from      = ['127.0.0.1','::1'],
+      extended_status = 'On',
+      status_path     = '/server-status',
+){
+
+
+  }
+```
+
 ####Class: `apache::mod::wsgi`
 
-Enables Python support in the WSGI module. To use, simply `include 'apache::mod::wsgi'`. 
+Enables Python support in the WSGI module. To use, simply `include 'apache::mod::wsgi'`.
 
 For customized parameters, which tell Apache how Python is currently configured on the operating system,
 
@@ -730,6 +769,22 @@ For customized parameters, which tell Apache how Python is currently configured 
       wsgi_python_path   => '/path/to/venv/site-packages',
     }
 ```
+
+To specify an alternate mod\_wsgi package name to install and the name of the module .so it provides,
+(e.g. a "python27-mod\_wsgi" package that provides "python27-mod_wsgi.so" in the default module directory):
+
+```puppet
+    class { 'apache::mod::wsgi':
+      wsgi_socket_prefix => "\${APACHE_RUN_DIR}WSGI",
+      wsgi_python_home   => '/path/to/venv',
+      wsgi_python_path   => '/path/to/venv/site-packages',
+	  package_name       => 'python27-mod_wsgi',
+	  mod_path           => 'python27-mod_wsgi.so',
+    }
+```
+
+If ``mod_path`` does not contain "/", it will be prefixed by the default module path
+for your OS; otherwise, it will be used literally.
 
 More information about [WSGI](http://modwsgi.readthedocs.org/en/latest/).
 
@@ -824,7 +879,7 @@ mod_reqtimeout configuration.
   }
 ```
 
-####Class: `apache::mod::reqtimeout`
+####Class: `apache::mod::version`
 
 This wrapper around mod_version warns on Debian and Ubuntu systems with Apache httpd 2.4
 about loading mod_version, as on these platforms it's already built-in.
@@ -838,6 +893,24 @@ about loading mod_version, as on these platforms it's already built-in.
 A string or an array that sets the `RequestReadTimeout` option. Defaults to
 `['header=20-40,MinRate=500', 'body=20,MinRate=500']`.
 
+
+####Class: `apache::mod::security`
+
+Installs and configures mod_security.  Defaults to enabled and running on all
+vhosts.
+
+```puppet
+  include '::apache::mod::security'
+```
+
+#####`modsec_dir`
+
+Directory to install the modsec configuration and activated rules links into
+
+#####`activated_rules`
+
+Array of rules from the modsec_crs_path to activate by symlinking to
+${modsec_dir}/activated_rules.
 
 ####Defined Type: `apache::vhost`
 
@@ -871,7 +944,7 @@ If you have a series of specific configurations and do not want a base `::apache
 
 #####`access_log`
 
-Specifies whether `*_access.log` directives (`*_file`,`*_pipe`, or `*_syslog`) should be configured. Setting the value to 'false' chooses none. Defaults to 'true'. 
+Specifies whether `*_access.log` directives (`*_file`,`*_pipe`, or `*_syslog`) should be configured. Setting the value to 'false' chooses none. Defaults to 'true'.
 
 #####`access_log_file`
 
@@ -963,7 +1036,9 @@ Sets the list of resources to look for when a client requests an index of the di
 
 #####`docroot`
 
-Provides the [DocumentRoot](http://httpd.apache.org/docs/current/mod/core.html#documentroot) directive, which identifies the directory Apache serves files from. Required. 
+Provides the
+[DocumentRoot](http://httpd.apache.org/docs/current/mod/core.html#documentroot)
+directive, which identifies the directory Apache serves files from. Required.
 
 #####`docroot_group`
 
@@ -1071,6 +1146,34 @@ in without being aware of the consequences; see http://httpd.apache.org/docs/2.4
 
 Specifies the verbosity of the error log. Defaults to 'warn' for the global server configuration and can be overridden on a per-vhost basis. Valid values are 'emerg', 'alert', 'crit', 'error', 'warn', 'notice', 'info' or 'debug'.
 
+######`modsec_body_limit`
+
+Configures the maximum request body size (in bytes) ModSecurity will accept for buffering
+
+######`modsec_disable_vhost`
+
+Boolean.  Only valid if apache::mod::security is included.  Used to disable mod_security on an individual vhost.  Only relevant if apache::mod::security is included.
+
+######`modsec_disable_ids`
+
+Array of mod_security IDs to remove from the vhost.  Also takes a hash allowing removal of an ID from a specific location.
+
+```puppet
+    apache::vhost { 'sample.example.net':
+      modsec_disable_ids => [ 90015, 90016 ],
+    }
+```
+
+```puppet
+    apache::vhost { 'sample.example.net':
+      modsec_disable_ids => { '/location1' => [ 90015, 90016 ] },
+    }
+```
+
+######`modsec_disable_ips`
+
+Array of IPs to exclude from mod_security rule matching
+
 #####`no_proxy_uris`
 
 Specifies URLs you do not want to proxy. This parameter is meant to be used in combination with [`proxy_dest`](#proxy_dest).
@@ -1116,13 +1219,17 @@ Sets [PassengerStartTimeout](https://www.phusionpassenger.com/documentation/User
 
 Sets [PassengerPreStart](https://www.phusionpassenger.com/documentation/Users%20guide%20Apache.html#PassengerPreStart), the URL of the application if pre-starting is required.
 
+#####`php_flags & values`
+
+Allows per-vhost setting [`php_value`s or `php_flag`s](http://php.net/manual/en/configuration.changes.php). These flags or values can be overwritten by a user or an application. Defaults to '[]'.
+
 #####`php_admin_flags & values`
 
 Allows per-vhost setting [`php_admin_value`s or `php_admin_flag`s](http://php.net/manual/en/configuration.changes.php). These flags or values cannot be overwritten by a user or an application. Defaults to '[]'.
 
 #####`port`
 
-Sets the port the host is configured on. The module's defaults ensure the host listens on port 80 for non-SSL vhosts and port 443 for SSL vhosts. The host only listens on the port set in this parameter. 
+Sets the port the host is configured on. The module's defaults ensure the host listens on port 80 for non-SSL vhosts and port 443 for SSL vhosts. The host only listens on the port set in this parameter.
 
 #####`priority`
 
@@ -1142,7 +1249,7 @@ Specifies an array of `path => URI` for a [ProxyPass](http://httpd.apache.org/do
 
 ```puppet
 apache::vhost { 'site.name.fdqn':
-  … 
+  …
   proxy_pass => [
     { 'path' => '/a', 'url' => 'http://backend-a/' },
     { 'path' => '/b', 'url' => 'http://backend-b/' },
@@ -1170,7 +1277,7 @@ Specifies the address to redirect to. Defaults to 'undef'.
 
 #####`redirect_source`
 
-Specifies the source URIs that redirect to the destination specified in `redirect_dest`. If more than one item for redirect is supplied, the source and destination must be the same length, and the items are order-dependent. 
+Specifies the source URIs that redirect to the destination specified in `redirect_dest`. If more than one item for redirect is supplied, the source and destination must be the same length, and the items are order-dependent.
 
 ```puppet
     apache::vhost { 'site.name.fdqn':
@@ -1220,7 +1327,7 @@ Modifies collected [request headers](http://httpd.apache.org/docs/current/mod/mo
 
 #####`rewrites`
 
-Creates URL rewrite rules. Expects an array of hashes, and the hash keys can be any of 'comment', 'rewrite_base', 'rewrite_cond', or 'rewrite_rule'. Defaults to 'undef'. 
+Creates URL rewrite rules. Expects an array of hashes, and the hash keys can be any of 'comment', 'rewrite_base', 'rewrite_cond', or 'rewrite_rule'. Defaults to 'undef'.
 
 For example, you can specify that anyone trying to access index.html is served welcome.html
 
@@ -1281,7 +1388,7 @@ Multiple rewrites and conditions are also possible
           rewrite_base => /apps/,
           rewrite_rule => ['^index\.cgi$ index.php', '^index\.html$ index.php', '^index\.asp$ index.html'],
         },
-     ], 
+     ],
     }
 ```
 
@@ -1336,13 +1443,21 @@ Sets the servername corresponding to the hostname you connect to the virtual hos
 
 Used by HTTPD to set environment variables for vhosts. Defaults to '[]'.
 
+Example:
+
+```puppet
+    apache::vhost { 'setenv.example.com':
+      setenv => ['SPECIAL_PATH /foo/bin'],
+    }
+```
+
 #####`setenvif`
 
 Used by HTTPD to conditionally set environment variables for vhosts. Defaults to '[]'.
 
 #####`suphp_addhandler`, `suphp_configpath`, & `suphp_engine`
 
-Set up a virtual host with [suPHP](http://suphp.org/DocumentationView.html?file=apache/CONFIG). 
+Set up a virtual host with [suPHP](http://suphp.org/DocumentationView.html?file=apache/CONFIG).
 
 `suphp_addhandler` defaults to 'php5-script' on RedHat and FreeBSD, and 'x-httpd-php' on Debian.
 
@@ -1369,9 +1484,9 @@ To set up a virtual host with suPHP
 
 Enables name-based virtual hosting. If no IP is passed to the virtual host, but the vhost is assigned a port, then the vhost name is 'vhost_name:port'. If the virtual host has no assigned IP or port, the vhost name is set to the title of the resource. Defaults to '*'.
 
-#####`virtual_docroot` 
+#####`virtual_docroot`
 
-Sets up a virtual host with a wildcard alias subdomain mapped to a directory with the same name. For example, 'http://example.com' would map to '/var/www/example.com'. Defaults to 'false'. 
+Sets up a virtual host with a wildcard alias subdomain mapped to a directory with the same name. For example, 'http://example.com' would map to '/var/www/example.com'. Defaults to 'false'.
 
 ```puppet
     apache::vhost { 'subdomain.loc':
@@ -1407,8 +1522,8 @@ To set up a virtual host with WSGI
       docroot                     => '/var/www/pythonapp',
       wsgi_daemon_process         => 'wsgi',
       wsgi_daemon_process_options =>
-        { processes    => '2', 
-          threads      => '15', 
+        { processes    => '2',
+          threads      => '15',
           display-name => '%{GROUP}',
          },
       wsgi_process_group          => 'wsgi',
@@ -1421,9 +1536,9 @@ To set up a virtual host with WSGI
 
 The `directories` parameter within the `apache::vhost` class passes an array of hashes to the vhost to create [Directory](http://httpd.apache.org/docs/current/mod/core.html#directory), [File](http://httpd.apache.org/docs/current/mod/core.html#files), and [Location](http://httpd.apache.org/docs/current/mod/core.html#location) directive blocks. These blocks take the form, '< Directory /path/to/directory>...< /Directory>'.
 
-The `path` key sets the path for the directory, files, and location blocks. Its value must be a path for the 'directory', 'files', and 'location' providers, or a regex for the 'directorymatch', 'filesmatch', or 'locationmatch' providers. Each hash passed to `directories` **must** contain `path` as one of the keys. 
+The `path` key sets the path for the directory, files, and location blocks. Its value must be a path for the 'directory', 'files', and 'location' providers, or a regex for the 'directorymatch', 'filesmatch', or 'locationmatch' providers. Each hash passed to `directories` **must** contain `path` as one of the keys.
 
-The `provider` key is optional. If missing, this key defaults to 'directory'. Valid values for `provider` are 'directory', 'files', 'location', 'directorymatch', 'filesmatch', or 'locationmatch'. If you set `provider` to 'directorymatch', it uses the keyword 'DirectoryMatch' in the Apache config file. 
+The `provider` key is optional. If missing, this key defaults to 'directory'. Valid values for `provider` are 'directory', 'files', 'location', 'directorymatch', 'filesmatch', or 'locationmatch'. If you set `provider` to 'directorymatch', it uses the keyword 'DirectoryMatch' in the Apache config file.
 
 General `directories` usage looks something like
 
@@ -1431,9 +1546,9 @@ General `directories` usage looks something like
     apache::vhost { 'files.example.net':
       docroot     => '/var/www/files',
       directories => [
-        { 'path'     => '/var/www/files', 
-          'provider' => 'files', 
-          'deny'     => 'from all' 
+        { 'path'     => '/var/www/files',
+          'provider' => 'files',
+          'deny'     => 'from all'
          },
       ],
     }
@@ -1450,19 +1565,19 @@ Available handlers, represented as keys, should be placed within the `directory`
 }
 ```
 
-Any handlers you do not set in these hashes are considered 'undefined' within Puppet and are not added to the virtual host, resulting in the module using their default values. Supported handlers are: 
+Any handlers you do not set in these hashes are considered 'undefined' within Puppet and are not added to the virtual host, resulting in the module using their default values. Supported handlers are:
 
 ######`addhandlers`
 
-Sets [AddHandler](http://httpd.apache.org/docs/current/mod/mod_mime.html#addhandler) directives, which map filename extensions to the specified handler. Accepts a list of hashes, with `extensions` serving to list the extensions being managed by the handler, and takes the form: `{ handler => 'handler-name', extensions => ['extension']}`. 
+Sets [AddHandler](http://httpd.apache.org/docs/current/mod/mod_mime.html#addhandler) directives, which map filename extensions to the specified handler. Accepts a list of hashes, with `extensions` serving to list the extensions being managed by the handler, and takes the form: `{ handler => 'handler-name', extensions => ['extension']}`.
 
 ```puppet
     apache::vhost { 'sample.example.net':
       docroot     => '/path/to/directory',
-      directories => [ 
+      directories => [
         { path        => '/path/to/directory',
           addhandlers => [{ handler => 'cgi-script', extensions => ['.cgi']}],
-        }, 
+        },
       ],
     }
 ```
@@ -1474,10 +1589,10 @@ Sets an [Allow](http://httpd.apache.org/docs/2.2/mod/mod_authz_host.html#allow) 
 ```puppet
     apache::vhost { 'sample.example.net':
       docroot     => '/path/to/directory',
-      directories => [ 
-        { path  => '/path/to/directory', 
-          allow => 'from example.org', 
-        }, 
+      directories => [
+        { path  => '/path/to/directory',
+          allow => 'from example.org',
+        },
       ],
     }
 ```
@@ -1489,10 +1604,10 @@ Sets the types of directives allowed in [.htaccess](http://httpd.apache.org/docs
 ```puppet
     apache::vhost { 'sample.example.net':
       docroot      => '/path/to/directory',
-      directories  => [ 
-        { path           => '/path/to/directory', 
-          allow_override => ['AuthConfig', 'Indexes'], 
-        }, 
+      directories  => [
+        { path           => '/path/to/directory',
+          allow_override => ['AuthConfig', 'Indexes'],
+        },
       ],
     }
 ```
@@ -1559,8 +1674,11 @@ Pass a string of custom configuration directives to be placed at the end of the 
 
 ```puppet
   apache::vhost { 'monitor':
-    … 
-    custom_fragment => '
+    …
+    directories => [
+      {
+        path => '/path/to/directory',
+        custom_fragment => '
   <Location /balancer-manager>
     SetHandler balancer-manager
     Order allow,deny
@@ -1572,34 +1690,36 @@ Pass a string of custom configuration directives to be placed at the end of the 
     Allow from all
   </Location>
   ProxyStatus On',
-}
+      },
+    ]
+  }
 ```
 
 ######`deny`
 
-Sets a [Deny](http://httpd.apache.org/docs/2.2/mod/mod_authz_host.html#deny) directive, specifying which hosts are denied access to the server. **Deprecated:** This parameter is being deprecated due to a change in Apache. It only works with Apache 2.2 and lower. 
+Sets a [Deny](http://httpd.apache.org/docs/2.2/mod/mod_authz_host.html#deny) directive, specifying which hosts are denied access to the server. **Deprecated:** This parameter is being deprecated due to a change in Apache. It only works with Apache 2.2 and lower.
 
 ```puppet
     apache::vhost { 'sample.example.net':
       docroot     => '/path/to/directory',
-      directories => [ 
-        { path => '/path/to/directory', 
-          deny => 'from example.org', 
-        }, 
+      directories => [
+        { path => '/path/to/directory',
+          deny => 'from example.org',
+        },
       ],
     }
 ```
 
 ######`error_documents`
 
-An array of hashes used to override the [ErrorDocument](https://httpd.apache.org/docs/current/mod/core.html#errordocument) settings for the directory. 
+An array of hashes used to override the [ErrorDocument](https://httpd.apache.org/docs/current/mod/core.html#errordocument) settings for the directory.
 
 ```puppet
     apache::vhost { 'sample.example.net':
-      directories => [ 
+      directories => [
         { path            => '/srv/www',
           error_documents => [
-            { 'error_code' => '503', 
+            { 'error_code' => '503',
               'document'   => '/service-unavail',
             },
           ],
@@ -1629,9 +1749,9 @@ Allows configuration settings for [directory indexing](http://httpd.apache.org/d
 ```puppet
     apache::vhost { 'sample.example.net':
       docroot     => '/path/to/directory',
-      directories => [ 
-        { path          => '/path/to/directory', 
-          options       => ['Indexes','FollowSymLinks','MultiViews'], 
+      directories => [
+        { path          => '/path/to/directory',
+          options       => ['Indexes','FollowSymLinks','MultiViews'],
           index_options => ['IgnoreCase', 'FancyIndexing', 'FoldersFirst', 'NameWidth=*', 'DescriptionWidth=*', 'SuppressHTMLPreamble'],
         },
       ],
@@ -1645,11 +1765,11 @@ Sets the [default ordering](http://httpd.apache.org/docs/current/mod/mod_autoind
 ```puppet
     apache::vhost { 'sample.example.net':
       docroot     => '/path/to/directory',
-      directories => [ 
-        { path                => '/path/to/directory', 
-          order               => 'Allow,Deny', 
+      directories => [
+        { path                => '/path/to/directory',
+          order               => 'Allow,Deny',
           index_order_default => ['Descending', 'Date'],
-        }, 
+        },
       ],
     }
 ```
@@ -1661,9 +1781,9 @@ Lists the [Options](http://httpd.apache.org/docs/current/mod/core.html#options) 
 ```puppet
     apache::vhost { 'sample.example.net':
       docroot     => '/path/to/directory',
-      directories => [ 
-        { path    => '/path/to/directory', 
-          options => ['Indexes','FollowSymLinks','MultiViews'], 
+      directories => [
+        { path    => '/path/to/directory',
+          options => ['Indexes','FollowSymLinks','MultiViews'],
         },
       ],
     }
@@ -1676,9 +1796,9 @@ Sets the order of processing Allow and Deny statements as per [Apache core docum
 ```puppet
     apache::vhost { 'sample.example.net':
       docroot     => '/path/to/directory',
-      directories => [ 
-        { path  => '/path/to/directory', 
-          order => 'Allow,Deny', 
+      directories => [
+        { path  => '/path/to/directory',
+          order => 'Allow,Deny',
         },
       ],
     }
@@ -1691,15 +1811,19 @@ Sets the value for the [PassengerEnabled](http://www.modrails.com/documentation/
 ```puppet
     apache::vhost { 'sample.example.net':
       docroot     => '/path/to/directory',
-      directories => [ 
-        { path              => '/path/to/directory', 
+      directories => [
+        { path              => '/path/to/directory',
           passenger_enabled => 'on',
-        }, 
+        },
       ],
     }
 ```
 
 *Note:* Be aware that there is an [issue](http://www.conandalton.net/2010/06/passengerenabled-off-not-working.html) using the PassengerEnabled directive with the PassengerHighPerformance directive.
+ 
+######`php_value` and `php_flag`
+
+`php_value` sets the value of the directory, and `php_flag` uses a boolean to configure the directory. Further information can be found [here](http://php.net/manual/en/configuration.changes.php).
 
 ######`php_admin_value` and `php_admin_flag`
 
@@ -1728,9 +1852,9 @@ Sets a `SetHandler` directive as per the [Apache Core documentation](http://http
 ```puppet
     apache::vhost { 'sample.example.net':
       docroot     => '/path/to/directory',
-      directories => [ 
-        { path       => '/path/to/directory', 
-          sethandler => 'None', 
+      directories => [
+        { path       => '/path/to/directory',
+          sethandler => 'None',
         }
       ],
     }
@@ -1781,7 +1905,7 @@ Allows an valid content setting to be set or altered for the application request
 
 ######`shib_use_headers`
 
-When set to 'On' this turns on the use of request headers to publish attributes to applications. Valid values for this key is 'On' or 'Off', and the default value is 'Off'. This key is disabled if `apache::mod::shib` is not defined. Check the [`mod_shib` documentation](https://wiki.shibboleth.net/confluence/display/SHIB2/NativeSPApacheConfig#NativeSPApacheConfig-Server/VirtualHostOptions) for more details. 
+When set to 'On' this turns on the use of request headers to publish attributes to applications. Valid values for this key is 'On' or 'Off', and the default value is 'Off'. This key is disabled if `apache::mod::shib` is not defined. Check the [`mod_shib` documentation](https://wiki.shibboleth.net/confluence/display/SHIB2/NativeSPApacheConfig#NativeSPApacheConfig-Server/VirtualHostOptions) for more details.
 
 ######`ssl_options`
 
@@ -1791,10 +1915,10 @@ String or list of [SSLOptions](https://httpd.apache.org/docs/current/mod/mod_ssl
     apache::vhost { 'secure.example.net':
       docroot     => '/path/to/directory',
       directories => [
-        { path        => '/path/to/directory', 
-          ssl_options => '+ExportCertData', 
+        { path        => '/path/to/directory',
+          ssl_options => '+ExportCertData',
         },
-        { path        => '/path/to/different/dir', 
+        { path        => '/path/to/different/dir',
           ssl_options => [ '-StdEnvVars', '+ExportCertData'],
         },
       ],
@@ -1809,10 +1933,10 @@ A hash containing the 'user' and 'group' keys for the [suPHP_UserGroup](http://w
     apache::vhost { 'secure.example.net':
       docroot     => '/path/to/directory',
       directories => [
-        { path  => '/path/to/directory', 
-          suphp => 
-            { user  =>  'myappuser', 
-              group => 'myappgroup', 
+        { path  => '/path/to/directory',
+          suphp =>
+            { user  =>  'myappuser',
+              group => 'myappgroup',
             },
         },
       ],
@@ -1825,7 +1949,7 @@ All of the SSL parameters for `::vhost` default to whatever is set in the base `
 
 #####`ssl`
 
-Enables SSL for the virtual host. SSL vhosts only respond to HTTPS queries. Valid values are 'true' or 'false'. Defaults to 'false'. 
+Enables SSL for the virtual host. SSL vhosts only respond to HTTPS queries. Valid values are 'true' or 'false'. Defaults to 'false'.
 
 #####`ssl_ca`
 
@@ -1837,7 +1961,7 @@ Specifies the SSL certification. Defaults are based on your OS: '/etc/pki/tls/ce
 
 #####`ssl_protocol`
 
-Specifies [SSLProtocol](http://httpd.apache.org/docs/current/mod/mod_ssl.html#sslprotocol). Defaults to 'undef'. 
+Specifies [SSLProtocol](http://httpd.apache.org/docs/current/mod/mod_ssl.html#sslprotocol). Defaults to 'undef'.
 
 If you do not use this parameter, it uses the HTTPD default from ssl.conf.erb, 'all -SSLv2 -SSLv3'.
 
@@ -1899,7 +2023,7 @@ Sets the [SSLVerifyDepth](http://httpd.apache.org/docs/current/mod/mod_ssl.html#
 
 #####`ssl_options`
 
-Sets the [SSLOptions](http://httpd.apache.org/docs/current/mod/mod_ssl.html#ssloptions) directive, which configures various SSL engine run-time options. This is the global setting for the given vhost and can be a string or an array. Defaults to 'undef'. 
+Sets the [SSLOptions](http://httpd.apache.org/docs/current/mod/mod_ssl.html#ssloptions) directive, which configures various SSL engine run-time options. This is the global setting for the given vhost and can be a string or an array. Defaults to 'undef'.
 
 A string:
 
@@ -1945,7 +2069,7 @@ Within your virtual host, you can then configure the specified file type to be h
 ```puppet
 apache::vhost { 'www':
   ...
-  custom_fragment = 'AddType application/x-httpd-php .php'
+  custom_fragment => 'AddType application/x-httpd-php .php'
   ...
 }
 ```
@@ -1972,7 +2096,7 @@ A unique alias. This is used internally to link the action with the FastCGI serv
 
 #####`file_type`
 
-The MIME-type of the file to be processed by the FastCGI server. 
+The MIME-type of the file to be processed by the FastCGI server.
 
 ###Virtual Host Examples
 
@@ -2148,7 +2272,7 @@ If you want to add two name-based vhosts so that they answer on either 10.0.0.10
 
 ####Defined Type: `apache::balancer`
 
-`apache::balancer` creates an Apache balancer cluster. Each balancer cluster needs one or more balancer members, which are declared with [`apache::balancermember`](#defined-type-apachebalancermember). 
+`apache::balancer` creates an Apache balancer cluster. Each balancer cluster needs one or more balancer members, which are declared with [`apache::balancermember`](#defined-type-apachebalancermember).
 
 One `apache::balancer` defined resource should be defined for each Apache load balanced set of servers. The `apache::balancermember` resources for all balancer members can be exported and collected on a single Apache load balancer server using exported resources.
 
@@ -2164,7 +2288,7 @@ Configures key-value pairs as [ProxySet](http://httpd.apache.org/docs/current/mo
 
 #####`collect_exported`
 
-Determines whether or not to use exported resources. Valid values 'true' and 'false', defaults to 'true'. 
+Determines whether or not to use exported resources. Valid values 'true' and 'false', defaults to 'true'.
 
 If you statically declare all of your backend servers, you should set this to 'false' to rely on existing declared balancer member resources. Also make sure to use `apache::balancermember` with array arguments.
 
@@ -2242,7 +2366,7 @@ If you need to use ProxySet in the balancer config
 * [`apache`](#class-apache): Guides the basic setup of Apache.
 * `apache::dev`: Installs Apache development libraries. (*Note:* On FreeBSD, you must declare `apache::package` or `apache` before `apache::dev`.)
 * [`apache::mod::[name]`](#classes-apachemodname): Enables specific Apache HTTPD modules.
- 
+
 ####Private Classes
 
 * `apache::confd::no_accf`: Creates the no-accf.conf configuration file in conf.d, required by FreeBSD's Apache 2.4.
@@ -2261,12 +2385,13 @@ If you need to use ProxySet in the balancer config
 * `apache::listen`: Based on the title, controls which ports Apache binds to for listening. Adds [Listen](http://httpd.apache.org/docs/current/bind.html) directives to ports.conf in the Apache HTTPD configuration directory. Titles take the form '<port>', '<ipv4>:<port>', or '<ipv6>:<port>'.
 * `apache::mod`: Used to enable arbitrary Apache HTTPD modules for which there is no specific `apache::mod::[name]` class.
 * `apache::namevirtualhost`: Enables name-based hosting of a virtual host. Adds all [NameVirtualHost](http://httpd.apache.org/docs/current/vhosts/name-based.html) directives to the `ports.conf` file in the Apache HTTPD configuration directory. Titles take the form '\*', '*:<port>', '\_default_:<port>, '<ip>', or '<ip>:<port>'.
-* `apache::vhost`: Allows specialized configurations for virtual hosts that have requirements outside the defaults. 
+* `apache::vhost`: Allows specialized configurations for virtual hosts that have requirements outside the defaults.
 
 ####Private Defined Types
 
 * `apache::peruser::multiplexer`: Enables the [Peruser](http://www.freebsd.org/cgi/url.cgi?ports/www/apache22-peruser-mpm/pkg-descr) module for FreeBSD only.
 * `apache::peruser::processor`: Enables the [Peruser](http://www.freebsd.org/cgi/url.cgi?ports/www/apache22-peruser-mpm/pkg-descr) module for FreeBSD only.
+* `apache::security::file_link`: Links the activated_rules from apache::mod::security to the respective CRS rules on disk.
 
 ###Templates
 
@@ -2280,7 +2405,7 @@ The `apache::vhost::WSGIImportScript` parameter creates a statement inside the V
 
 ###RHEL/CentOS 5
 
-The `apache::mod::passenger` and `apache::mod::proxy_html` classes are untested since repositories are missing compatible packages.   
+The `apache::mod::passenger` and `apache::mod::proxy_html` classes are untested since repositories are missing compatible packages.
 
 ###RHEL/CentOS 7
 
@@ -2288,7 +2413,7 @@ The `apache::mod::passenger` class is untested as the repository does not have p
 
 ###General
 
-This module is CI tested on Centos 5 & 6, Ubuntu 12.04 & 14.04, Debian 7, and RHEL 5, 6 & 7 platforms against both the OSS and Enterprise version of Puppet. 
+This module is CI tested on Centos 5 & 6, Ubuntu 12.04 & 14.04, Debian 7, and RHEL 5, 6 & 7 platforms against both the OSS and Enterprise version of Puppet.
 
 The module contains support for other distributions and operating systems, such as FreeBSD and Amazon Linux, but is not formally tested on those and regressions can occur.
 
@@ -2331,7 +2456,7 @@ Puppet Labs modules on the Puppet Forge are open projects, and community contrib
 
 We want to keep it as easy as possible to contribute changes so that our modules work in your environment. There are a few guidelines that we need contributors to follow so that we can have a chance of keeping on top of things.
 
-You can read the complete module contribution guide [on the Puppet Labs wiki.](http://projects.puppetlabs.com/projects/module-site/wiki/Module_contributing)
+Read the complete module [contribution guide](https://docs.puppetlabs.com/forge/contributing.html)
 
 ###Running tests
 

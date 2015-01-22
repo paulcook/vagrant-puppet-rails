@@ -1,6 +1,12 @@
 require 'spec_helper'
 
 describe 'rvm' do
+
+  let(:facts) {{
+    :path => '/bin',
+    :rvm_version => ''
+  }}
+
   context "default parameters", :compile do
     it { should_not contain_class('rvm::dependencies') }
     it { should contain_class('rvm::system') }

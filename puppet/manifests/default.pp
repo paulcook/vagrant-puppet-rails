@@ -23,7 +23,6 @@ package { $sysPackages:
 }
 
 class { 'apache':
-  mpm_module => 'worker',
   require => Class['apt'],
 }
 
@@ -31,18 +30,15 @@ user { 'vagrant':
   ensure => present,
 }
 
-# Exec { environment => ["rvmsudo_secure_path=1"] }
-
  # Install RVM and some gems then passenger/apache
 class { 'rvm':
-  version => '1.25.33',
   require => Class['apache'],
 }
 
 rvm::system_user { vagrant: }
 
 rvm_system_ruby {
-  'ruby-2.1.4':
+  'ruby-2.1.5':
     ensure => present,
     require => Class['rvm::system'],
     default_use => true;
@@ -51,13 +47,12 @@ rvm_system_ruby {
 rvm_gem {
   'ruby-2.1.4/bundler':
     ensure => latest,
-    require => Rvm_system_ruby['ruby-2.1.4'];
+    require => Rvm_system_ruby['ruby-2.1.5'];
 }
 
 class {
   'rvm::passenger::apache':
-    version => '4.0.53',
-    ruby_version => 'ruby-2.1.4';
+    ruby_version => 'ruby-2.1.5';
 }
 
 # class { 'apache_passenger_vhost':
